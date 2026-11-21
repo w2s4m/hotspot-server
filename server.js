@@ -237,9 +237,23 @@ async function handle(req, res) {
       return send(res, 409, { ok: false, error: 'نفدت بطاقات هذه الباقة حالياً، تواصل مع وسام' });
     }
     const card = JSON.parse(raw);
-    await store.addSale({ t: Date.now(), plan: plan.name, price: plan.price, balance: sms.balance, user: card.u, ip, receipt: !!receipt });
+    await store.addSale({ t: Date.now(), plan: plan.name, price: plan.price, balance: sms.balance, user: card.u, pass: card.p, msg: normalize(b.message).slice(0, 300), ip, receipt: !!receipt });
     const left = await store.count(plan.id);
-    notify('💰 بيعة: ' + plan.name + ' (' + plan.price + ' شيكل)\nالمتبقي من هذه الباقة: ' + left + (left === 0 ? '\n⚠️ نفد المخزون!' : left <= LOW_STOCK ? '\n⚠️ المخزون قليل، أضف بطاقات' : ''));
+    notify(
+      '💰 بيعة جديدة\n' +
+      '━━━━━━━━━━━━\n' +
+      '📦 الباقة: ' + plan.name + ' (' + plan.price + ' شيكل)\n' +
+      '👤 اليوزر: ' + card.u + '\n' +
+      '🔑 الباسورد: ' + card.p + '\n' +
+      '━━━━━━━━━━━━\n' +
+      '💳 رسالة الدفع:\n' + normalize(b.message).slice(0, 300) + '\n' +
+      '💵 رصيد الزبون بعد الدفع: ' + sms.balance.toFixed(2) + ' ILS\n' +
+      (receipt ? '✅ تم تأكيد الاستلام من جوالك\n' : '⚠️ بدون تأكيد استلام (الرسالة من الزبون فقط)\n') +
+      '🌐 IP: ' + ip + '\n' +
+      '━━━━━━━━━━━━\n' +
+      '📊 المتبقي من هذه الباقة: ' + left +
+      (left === 0 ? '\n🚨 نفد المخزون!' : left <= LOW_STOCK ? '\n⚠️ المخزون قليل، أضف بطاقات' : '')
+    );
     return send(res, 200, { ok: true, plan: plan.name, username: card.u, password: card.p });
   }
 
@@ -264,8 +278,12 @@ async function handle(req, res) {
   if (p === '/api/admin/summary' && req.method === 'GET') {
     if (!isAdmin(req)) return send(res, 401, { ok: false });
     const stock = {};
-    for (const pl of PLANS) stock[pl.id] = await store.count(pl.id);
-    return send(res, 200, { ok: true, plans: PLANS, stock, sales: await store.sales(100) });
+    const cards = {};
+    for (const pl of PLANS) {
+      const list = (await store.list(pl.id)).map(x => JSON.parse(x));
+      cards[pl.id] = list; stock[pl.id] = list.length;
+    }
+    return send(res, 200, { ok: true, plans: PLANS, stock, cards, sales: await store.sales(100) });
   }
   if (p === '/api/admin/cards' && req.method === 'POST') {
     if (!isAdmin(req)) return send(res, 401, { ok: false });
