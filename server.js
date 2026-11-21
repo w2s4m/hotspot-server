@@ -12,6 +12,9 @@ const SELLER_LAST9 = (process.env.SELLER_NUMBER || '0599747574').replace(/\D/g, 
 const REQUIRE_RECEIPT = process.env.REQUIRE_RECEIPT === 'true'; // true = لازم يوصلك إشعار استلام من جوالك
 const INCOMING_SECRET = process.env.INCOMING_SECRET || '';   // سر الـ webhook (لإشعارات الاستلام)
 const RECEIPT_MAX_AGE_MIN = Number(process.env.RECEIPT_MAX_AGE_MIN || 30);
+const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';       // اختياري: تنبيهات تيليجرام
+const TG_CHAT = process.env.TELEGRAM_CHAT_ID || '';
+const LOW_STOCK = Number(process.env.LOW_STOCK || 3);         // نبّهني لما يضل هالعدد أو أقل
 const HASH_TTL_SEC = 60 * 60 * 24 * 30;                      // الرسالة المستخدمة ما بتنقبل ثاني مرة لمدة 30 يوم
 
 const PLANS = [
@@ -168,6 +171,16 @@ async function bodyObj(req) {
   const o = {}; new URLSearchParams(raw).forEach((v, k) => { o[k] = v; }); return o;
 }
 
+async function notify(text) {
+  if (!TG_TOKEN || !TG_CHAT) return;
+  try {
+    await fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TG_CHAT, text })
+    });
+  } catch (e) { console.error('notify error', e.message); }
+}
+
 /* ================== المسارات ================== */
 async function handle(req, res) {
   const u = new URL(req.url, 'http://x');
@@ -225,6 +238,8 @@ async function handle(req, res) {
     }
     const card = JSON.parse(raw);
     await store.addSale({ t: Date.now(), plan: plan.name, price: plan.price, balance: sms.balance, user: card.u, ip, receipt: !!receipt });
+    const left = await store.count(plan.id);
+    notify('💰 بيعة: ' + plan.name + ' (' + plan.price + ' شيكل)\nالمتبقي من هذه الباقة: ' + left + (left === 0 ? '\n⚠️ نفد المخزون!' : left <= LOW_STOCK ? '\n⚠️ المخزون قليل، أضف بطاقات' : ''));
     return send(res, 200, { ok: true, plan: plan.name, username: card.u, password: card.p });
   }
 
