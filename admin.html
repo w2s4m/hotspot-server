@@ -19,7 +19,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:6px;borde
   <select id="plan"></select>
   <textarea id="cards" placeholder="كل بطاقة بسطر:&#10;user1 pass1&#10;user2 pass2&#10;(إذا البطاقة كود واحد اكتبه لحاله)"></textarea>
   <button id="add">إضافة للمخزون</button><div id="msg"></div></div>
- <div class="box"><h2>آخر المبيعات</h2><div style="overflow-x:auto"><table><thead><tr><th>الوقت</th><th>الباقة</th><th>السعر</th><th>اليوزر</th><th>الرصيد</th></tr></thead><tbody id="sales"></tbody></table></div></div>
+ <div class="box"><h2>كل البطاقات المتاحة</h2><div id="cardsList"></div></div>
+ <div class="box"><h2>آخر المبيعات</h2><div style="overflow-x:auto"><table><thead><tr><th>الوقت</th><th>الباقة</th><th>السعر</th><th>اليوزر</th><th>الباسورد</th><th>الرصيد</th></tr></thead><tbody id="sales"></tbody></table></div></div>
 </div>
 <script>
 var KEY=sessionStorage.getItem('k')||'';
@@ -32,8 +33,12 @@ function load(){api('/api/admin/summary').then(function(d){
  var st=$('stock');st.innerHTML='';var sel=$('plan');sel.innerHTML='';
  d.plans.forEach(function(p){var c=document.createElement('div');c.className='chip'+(d.stock[p.id]<3?' low':'');c.textContent=p.name+' ('+p.price+'₪): '+d.stock[p.id];st.appendChild(c);
   var o=document.createElement('option');o.value=p.id;o.textContent=p.name+' - '+p.price+' شيكل';sel.appendChild(o)});
+ var cl=$('cardsList');cl.innerHTML='';
+ d.plans.forEach(function(p){var det=document.createElement('details');var sm=document.createElement('summary');sm.textContent=p.name+' - '+(d.cards[p.id]||[]).length+' بطاقة';sm.style.cssText='cursor:pointer;padding:8px 0';det.appendChild(sm);
+  var pre=document.createElement('pre');pre.style.cssText='direction:ltr;text-align:left;background:#0b0d14;padding:10px;border-radius:10px;overflow:auto;margin:0 0 8px';
+  pre.textContent=(d.cards[p.id]||[]).map(function(c){return c.u+'  '+c.p}).join('\n')||'(فاضي)';det.appendChild(pre);cl.appendChild(det)});
  var tb=$('sales');tb.innerHTML='';
- d.sales.forEach(function(s){var tr=document.createElement('tr');tr.appendChild(td(new Date(s.t).toLocaleString('ar')));tr.appendChild(td(s.plan));tr.appendChild(td(s.price));tr.appendChild(td(s.user));tr.appendChild(td(s.balance));tb.appendChild(tr)});
+ d.sales.forEach(function(s){var tr=document.createElement('tr');tr.appendChild(td(new Date(s.t).toLocaleString('ar')));tr.appendChild(td(s.plan));tr.appendChild(td(s.price));tr.appendChild(td(s.user));tr.appendChild(td(s.pass||'-'));tr.appendChild(td(s.balance));tb.appendChild(tr)});
 })}
 $('go').onclick=function(){KEY=$('key').value;sessionStorage.setItem('k',KEY);load()};
 $('add').onclick=function(){api('/api/admin/cards',{method:'POST',body:JSON.stringify({planId:$('plan').value,text:$('cards').value})}).then(function(d){
