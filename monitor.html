@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- ======================================================================
+     صفحة مراقبة الراوتر: https://hotspot-server-pcyf.onrender.com/monitor?key=ROUTER_SECRET&hs=192.168.x.1
+     - افتحها على جهاز (جوال قديم / لابتوب) متصل بالهوتسبت وخليها مفتوحة.
+     - كل 30 ثانية بتبعت "أنا شغال" للسيرفر. إذا وقفت 3 دقايق => إشعار "الراوتر انقطع".
+     - key = نفس ROUTER_SECRET بـ Render.   hs = عنوان الهوتسبت (اختياري، للعرض بالبوت).
+     ====================================================================== -->
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مراقب الراوتر</title>
+<style>body{margin:0;padding:24px;background:#0b0d14;color:#f5f2ea;font-family:Tahoma,Arial,sans-serif;text-align:center}
+h1{font-size:20px;color:#f7dc92}#st{font-size:22px;margin:24px 0}p{color:#9aa3b8;font-size:14px}</style></head><body>
+<h1>📡 مراقب راوتر WESAM TECH</h1>
+<div id="st">...</div>
+<p>اترك هذه الصفحة مفتوحة والشاشة شغالة على جهاز متصل بالهوتسبت.</p>
+<script>
+// القيم من رابط الصفحة
+var q = new URLSearchParams(location.search), KEY = q.get('key') || '', HS = q.get('hs') || '';
+var st = document.getElementById('st');
+// إرسال إشارة حياة للسيرفر
+function beat() {
+  fetch('/api/hs/heartbeat', { method: 'POST', headers: { 'X-Secret': KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'monitor', hs_ip: HS }) })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { st.textContent = d.ok ? '🟢 شغّال - آخر إرسال ' + new Date().toLocaleTimeString('en-GB') : '🔴 المفتاح (key) غلط'; })
+    .catch(function () { st.textContent = '🔴 لا يوجد اتصال بالإنترنت'; });
+}
+beat(); setInterval(beat, 30000);
+// نمنع الشاشة تنطفي (إذا المتصفح بيدعم)
+function lock() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(function () {}); } catch (e) {} }
+lock(); document.addEventListener('visibilitychange', function () { if (!document.hidden) lock(); });
+</script></body></html>
